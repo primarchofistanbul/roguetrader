@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rogue Trader Point Calculator</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2rem;
+      max-width: 1000px;
+      margin: auto;
+    }
+    label {
+      display: block;
+      margin: 0.25rem 0;
+    }
+    input[type="number"], button {
+      padding: 0.4rem;
+      width: 100%;
+      margin-bottom: 1rem;
+    }
+    .section {
+      border: 1px solid #ccc;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      border-radius: 8px;
+    }
+    .flex {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .flex > div {
+      flex: 1 1 200px;
+    }
+    h2 {
+      margin-top: 2rem;
+    }
+    .scroll-box {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      padding: 0.5rem;
+    }
+    .category-title {
+      margin-top: 1rem;
+      font-weight: bold;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <h1>Warhammer 40k Rogue Trader Point Calculator</h1>
+  
+  <form id="calculator">
+    <div class="section">
+      <h2>Profile</h2>
+      <div class="flex">
+        <div><label>WS<input type="number" id="WS" value="3"></label></div>
+        <div><label>BS<input type="number" id="BS" value="3"></label></div>
+        <div><label>S<input type="number" id="S" value="3"></label></div>
+        <div><label>T<input type="number" id="T" value="3"></label></div>
+        <div><label>W<input type="number" id="W" value="1"></label></div>
+        <div><label>I<input type="number" id="I" value="3"></label></div>
+        <div><label>A<input type="number" id="A" value="1"></label></div>
+        <div><label>Ld<input type="number" id="Ld" value="7"></label></div>
+        <div><label>Int<input type="number" id="Int" value="7"></label></div>
+        <div><label>Cl<input type="number" id="Cl" value="7"></label></div>
+        <div><label>WP<input type="number" id="WP" value="7"></label></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Traits</h2>
+      <label><input type="checkbox" id="flying"> Flying</label>
+      <label><input type="checkbox" id="burrowing"> Burrowing</label>
+      <label><input type="checkbox" id="riding"> Riding/Draught Creature</label>
+    </div>
+
+    <div class="section">
+      <h2>Weapons & Equipment</h2>
+      <div class="scroll-box" id="equipment-list"></div>
+    </div>
+
+    <button type="button" onclick="calculatePoints()">Calculate Total Points</button>
+  </form>
+
+  <h2>Total Points: <span id="totalPoints">0</span></h2>
+
+  <script>
+    const baseProfile = { WS:3, BS:3, S:3, T:3, W:1, I:3, A:1, Ld:7, Int:7, Cl:7, WP:7 };
+    const modifiers = { WS:0.5, BS:0.25, S:1, T:1, W:4, I:0.25, A:4, Ld:0.25, Int:0.25, Cl:0.25, WP:0.25 };
+
+    const items = {
+      "A) Weapons, basic": {
+        "Auto-gun": 1.5, "Bolt gun": 2, "Bow": 0.5, "Crossbow": 1, "Flamer": 2, "Graviton gun": 2,
+        "Handbow": 0.5, "Lasgun": 1.5, "Melta-gun": 7, "Musket": 1, "Needle gun": 1,
+        "Plasma gun": 5.5, "Shotgun": 1, "Shuriken catapult": 2, "Sling": 0.5
+      },
+      "B) Weapons, close combat": {
+        "Antique pistol": 0.5, "Auto-pistol": 1, "Bolt pistol": 1.5, "Chainsword": 1.5,
+        "Combat accessory": 0.5, "Force rod": 40, "Force sword": 40, "Hafted weapon": 0.5,
+        "Hand flamer": 2, "Hand weapon": 0.5, "Jokaero digital": 50, "Laspistol": 0.5,
+        "Needle pistol": 0.5, "Neuro-disruptor": 5, "Plasma pistol": 4.5, "Power axe": 6,
+        "Power glove": 15, "Power sword": 7, "Sawn-off shotgun": 0.5, "Stub gun": 0.5,
+        "Sword": 0.5, "Web gun": 2
+      },
+      "C) Weapons, heavy": {
+        "Auto-cannon": 35, "Conversion beamer": 50, "Distortion cannon": 40,
+        "Grenade launcher": 15, "Heavy bolter": 15, "Heavy plasma gun": 50,
+        "Heavy stub": 10, "Heavy webber": 20, "Las-cannon": 45,
+        "Missile launcher": 30, "Multi-laser": 40, "Multi-melta": 50
+      },
+      "D) Weapons, very heavy": {
+        "Defence laser": 250, "Macro-cannon": 100, "Plasma cannon": 200
+      },
+      "E) Weapons, grenades": {
+        "Anti-plant": 0.5, "Blind": 1, "Choke": 0.5, "Crack (normal)": 2,
+        "Crack (powerful)": 4, "Frag": 1, "Hallucinogen": 2, "Haywire": 4,
+        "Knock-out": 0.5, "Melta-bomb": 4, "Photon": 1, "Plasma": 1,
+        "Psyk-out": 10, "Rad": 4, "Scare gas": 1, "Smoke": 0.5,
+        "Statis": 4, "Stumm": 0.5, "Tanglefoot": 1, "Toxin gas": 0.5,
+        "Virus": 25, "Vortex": 0
+      },
+      "F) Weapons, support": {
+        "Barrage bomb": 250, "Bio-wire bomb": 85, "Disruptor beacon": 35,
+        "Holographs": 10, "Homing beacon": 20, "Mine missile": 50,
+        "Missile": 50, "Nightlight": 10, "Plasma bomb": 500,
+        "Scatter missile": 50
+      },
+      "G) Equipment": {
+        "Auto-sense": 0.5, "Auto-system": 10, "Bio-scanner": 5, "Bombot": 5,
+        "Breathing apparatus": 7.5, "Cameleoline": 0.5, "Communicator": 0.5,
+        "Ejector seats (vehicles)": 5, "Visor, eye protection": 0.5,
+        "Contact, eye protection": 1, "Drops, eye protection": 0.5,
+        "Injections, eye protection": 5, "Flight pack": 4, "Frenzon (dose)": 0.5,
+        "Gravity chute": 1, "Immune (dose)": 1, "Infravision, surgery": 30,
+        "Infravision, visor": 1, "Infravision, contacts": 0.5, "Jump pack": 1,
+        "Las-cutter": 35, "Medi-pack": 5, "Needler chemical": 1,
+        "Parawing": 1, "Phase-field generator": 50, "Polymorphine (dose)": 15,
+        "Porta-rack": 7, "Power board": 3, "Power canopy (vehicle)": 5,
+        "Power field generator": 10, "Rad-counter": 3, "Sealed suit": 1,
+        "Stimulant (dose)": 0.5, "Stumm antidote (dose)": 0.5,
+        "Syn-skin (single use)": 100, "Suspensor": 2, "Targeter": 5,
+        "Teleport homer": 20, "Tendril-sensors": 25,
+        "Web-anaesthetic": 5, "Web solvent (single use)": 1
+      },
+      "H) Armor": {
+        "Carapace": 1.5, "Conversion field": 3, "Chainmail": 0.5,
+        "Displacer field": 2, "Flak": 0.5, "Mesh": 1,
+        "Plate": 1, "Powered armor": 6, "Refractor sihle": 1.5,
+        "Shield": 0.5, "Statis field": 25
+      },
+      "I) Bionics": {
+        "Arm": 30, "Ears": 30, "Eyes": 30, "Eyes, targeter": 40,
+        "Eyes, bio-scanner": 40, "Eyes, energy-scanner": 40,
+        "Legs": 30, "Lungs": 50
+      }
+    };
+
+    const equipmentList = document.getElementById("equipment-list");
+    for (let [category, group] of Object.entries(items)) {
+      const title = document.createElement("div");
+      title.className = "category-title";
+      title.textContent = category;
+      equipmentList.appendChild(title);
+      for (let [name, value] of Object.entries(group)) {
+        const label = document.createElement("label");
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.value = value;
+        checkbox.className = "equipment";
+        checkbox.onchange = calculatePoints;
+        label.appendChild(checkbox);
+        label.append(` ${name} (+${value} pts)`);
+        equipmentList.appendChild(label);
+      }
+    }
+
+    function calculateProfileCost() {
+      let cost = 5;
+      for (let stat in baseProfile) {
+        let val = parseFloat(document.getElementById(stat).value);
+        let delta = val - baseProfile[stat];
+        cost += delta * modifiers[stat];
+      }
+      return Math.max(1, cost);
+    }
+
+    function applyScalingModifier(base) {
+      const thresholds = [0, 11, 16, 21, 31, 41, 51, 61, 71, 81, 91];
+      const multipliers = [1, 1.5, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      let rounded = Math.ceil(base);
+      if (rounded <= 10) return base;
+      for (let i = thresholds.length - 1; i >= 0; i--) {
+        if (rounded >= thresholds[i]) {
+          return rounded * multipliers[i];
+        }
+      }
+      return rounded * 1;
+    }
+
+    function calculatePoints() {
+      let baseCost = calculateProfileCost();
+      let scaledCost = applyScalingModifier(baseCost);
+
+      let flying = document.getElementById("flying").checked;
+      let burrowing = document.getElementById("burrowing").checked;
+      let riding = document.getElementById("riding").checked;
+
+      let creatureCost = scaledCost;
+      if (flying || burrowing) {
+        let bonus = Math.max(5, Math.floor(creatureCost * 0.1));
+        creatureCost += bonus;
+      }
+      if (riding && creatureCost < 5) creatureCost = 5;
+
+      let extraCost = 0;
+      document.querySelectorAll(".equipment:checked").forEach(el => {
+        extraCost += parseFloat(el.value);
+      });
+
+      let total = creatureCost + extraCost;
+      document.getElementById("totalPoints").textContent = Math.floor(total);
+    }
+
+    window.onload = calculatePoints;
+  </script>
+</body>
+</html>
